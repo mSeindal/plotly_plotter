@@ -33,7 +33,7 @@
 
         /* Button Styling */
         button {
-            background-color: #007bff;
+            background-color: #4881fb;
             color: white;
             padding: 10px 20px;
             font-size: 16px;
@@ -81,14 +81,17 @@
         td:first-child {
             text-align: left;
         }
+        th:first-child {
+            text-align: left;
+        }
 
         tr:nth-child(even) {
             background-color: #f9f9f9;
         }
 
         tr:hover {
-            background-color: #f1f1f1;
-            transition: 0.3s;
+            background-color: #426ecc66;
+            transition: 0.2s;
         }
     </style>
 </head>
@@ -205,30 +208,13 @@
             Plotly.relayout('plot', { shapes: layout.shapes });
         });
 
-        // document.getElementById('plot').on('plotly_restyle', function(data) {
-        //     console.log(data[0].visible)
-        //     if (data[0].visible) {
-        //         visibility = data[0].visible.map(v => v === true || v === "legendonly");
-        //         console.log(visibility)
-        //         updateStats();
-        //     }
-        // });
-
-
         function updateStats(minIndex = 0, maxIndex = values[0].length - 1) {
             let stats = values.map((series, index) => {
                 let subset = series.slice(minIndex, maxIndex + 1);
                 let mean = subset.reduce((a, b) => a + b, 0) / subset.length;
                 let min = Math.min(...subset);
                 let max = Math.max(...subset);
-                return { name: `Series ${index + 1}`, mean: mean.toFixed(2), min, max };
-                // if (visibility[index]) {
-                //     let subset = series.slice(minIndex, maxIndex + 1);
-                //     let mean = subset.reduce((a, b) => a + b, 0) / subset.length;
-                //     let min = Math.min(...subset);
-                //     let max = Math.max(...subset);
-                //     return { name: `Series ${index + 1}`, mean: mean.toFixed(2), min, max };
-                // }
+                return { name: `${names[index]}`, mean: mean.toFixed(2), min, max };
             }).filter(Boolean);
 
             let tableContent = `<tr><th>Name</th><th>Mean</th><th>Min</th><th>Max</th></tr>` +
