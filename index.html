@@ -78,10 +78,11 @@
             text-align: center;
         }
 
-        td:first-child {
+        td:first-child, th:first-child {
             text-align: left;
         }
-        th:first-child {
+
+        td:nth-child(2), th:nth-child(2) {
             text-align: left;
         }
 
@@ -105,6 +106,7 @@
         <p id="timeDiff">Delta time [s]: ... </p>
         <table id="dataStats">
             <tr>
+                <th>#</th>
                 <th>Name</th>
                 <th>Mean</th>
                 <th>Min</th>
@@ -126,7 +128,6 @@
         // -----------------------------------------------------------------------------------------
 
         let selectedPoints = [];
-        let visibility = generateTrueArray(num_ch);
         let shapes = [];
 
         // Plotly plot and setup -------------------------------------------------------------------
@@ -214,11 +215,17 @@
                 let mean = subset.reduce((a, b) => a + b, 0) / subset.length;
                 let min = Math.min(...subset);
                 let max = Math.max(...subset);
-                return { name: `${names[index]}`, mean: mean.toFixed(2), min, max };
+                return {
+                    index: index + 1, // Index number (starting from 1)
+                    name: `${names[index]}`,
+                    mean: mean.toFixed(2),
+                    min,
+                    max
+                };
             }).filter(Boolean);
 
-            let tableContent = `<tr><th>Name</th><th>Mean</th><th>Min</th><th>Max</th></tr>` +
-                stats.map(entry => `<tr><td>${entry.name}</td><td>${entry.mean}</td><td>${entry.min}</td><td>${entry.max}</td></tr>`).join('');
+            let tableContent = "<tr><th>#</th><th>Name</th><th>Mean</th><th>Min</th><th>Max</th></tr>" +
+                stats.map(entry => `<tr><td>${entry.index}</td><td>${entry.name}</td><td>${entry.mean}</td><td>${entry.min}</td><td>${entry.max}</td></tr>`).join('');
             document.getElementById('dataStats').innerHTML = tableContent;
         }
 
@@ -246,10 +253,6 @@
 
         function generateRangeArray(x) {
             return Array.from({ length: x + 1 }, (_, i) => (i * 1/sampling_frq));
-        }
-
-        function generateTrueArray(length) {
-            return Array.from({ length }, () => true);
         }
 
         function generateNameArray(n) {
