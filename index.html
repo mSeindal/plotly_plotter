@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Difference on Click</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        /* Add margin to center content */
+        .content-wrapper {
+            margin: 0 auto; /* Centers content */
+            padding: 20px;
+        }
+
+        /* Button and Text Alignment */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px; /* Adds spacing between button and text */
+            margin-bottom: 15px;
+        }
+
+        /* Improved Table Styling with Margins */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-family: Arial, sans-serif;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        /* Button Styling */
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.1s ease;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+
+        /* Text Styling */
+        #timeDiff, #pointsSelected {
+            font-size: 18px;
+            font-weight: 600;
+            color: #444;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        #timeDiff {
+            background-color: #f0f0f0;
+        }
+
+
+        th, td {
+            padding: 12px;
+        }
+
+        th {
+            background-color: #333;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        td {
+            text-align: center;
+        }
+
+        td:first-child {
+            text-align: left;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+            transition: 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="plot", style="width: 100%; height: 800px;"></div>
+    <div class="content-wrapper">
+        <div class="controls">
+            <button onclick="resetSelection()">Reset Selection</button>
+            <p id="pointsSelected">Points selected: </p>
+        </div>
+        <p id="timeDiff">Delta time [s]: ... </p>
+        <table id="dataStats">
+            <tr>
+                <th>Name</th>
+                <th>Mean</th>
+                <th>Min</th>
+                <th>Max</th>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+        // Constants for development ---------------------------------------------------------------
+        const plot_title = "my tilte"
+        const sampling_frq = 5000
+        const data_lenght = 30000
+        const num_ch = 26
+
+        let timeStamps = generateRangeArray(data_lenght)
+        let values = generateRandomMatrix(num_ch, data_lenght)
+        let names = generateNameArray(num_ch)
+        // -----------------------------------------------------------------------------------------
+
+        let selectedPoints = [];
+        let visibility = generateTrueArray(num_ch);
+        let shapes = [];
+
+        // Plotly plot and setup -------------------------------------------------------------------
+        let traces = values.map((line, index) => ({
+            x: timeStamps,
+            y: line,
+            mode: 'lines',
+            type: 'scatter',
+            name: names[index],
+            visible: true
+        }));
+
+        let layout = {
+            title: {
+                text: 'Custom Plotly Chart',
+                x: 0.05, // Move title to the left
+                xanchor: 'left',
+            },
+            xaxis: { title: 'Time' },
+            yaxis: { title: 'Value' },
+            shapes: shapes,
+            hovermode: 'closest' // Default to "hoverClosestCartesian"
+        };
+
+        var config = {
+            responsive: true, // Makes the chart responsive
+            displayModeBar: true, // Show mode bar
+            modeBarButtonsToRemove: [
+                "hoverCompareCartesian",
+                "toggleSpikelines"
+            ],
+            displaylogo: false // Removes the Plotly logo
+        };
+
+        Plotly.newPlot('plot', traces, layout, config);
+        // -----------------------------------------------------------------------------------------
+
+        // Run these two first time page loads
+        resetSelection();
+        updateStats();
+
+        document.getElementById('plot').on('plotly_click', function(data) {
+            let time = data.points[0].x;
+            if (selectedPoints.length < 2) {
+                selectedPoints.push(time);
+            } else {
+                selectedPoints = [time];
+            }
+
+            if (selectedPoints.length === 1) {
+                document.getElementById('pointsSelected').innerText = `Points selected: ${selectedPoints[0]} - ?`;
+                layout.shapes = [];
+            } else if (selectedPoints.length === 2) {
+
+                document.getElementById('pointsSelected').innerText =
+                    `Points selected: ${selectedPoints[0]} - ${selectedPoints[1]}`;
+
+                let timeDifference = Math.abs(selectedPoints[1] - selectedPoints[0]);
+                document.getElementById('timeDiff').innerText =
+                    `Delta time [s]: ${timeDifference.toFixed(5)}`;
+
+                let minIndex = Math.min(selectedPoints[0], selectedPoints[1]);
+                let maxIndex = Math.max(selectedPoints[0], selectedPoints[1]);
+                updateStats(minIndex, maxIndex);
+
+                layout.shapes = [{
+                    type: 'rect',
+                    xref: 'x',
+                    yref: 'paper',
+                    x0: minIndex,
+                    x1: maxIndex,
+                    y0: 0,
+                    y1: 1,
+                    fillcolor: 'rgba(147, 27, 27, 0.24)', // color of the box showing the selected area
+                    line: { width: 0 }
+                }];
+            }
+
+            Plotly.relayout('plot', { shapes: layout.shapes });
+        });
+
+        // document.getElementById('plot').on('plotly_restyle', function(data) {
+        //     console.log(data[0].visible)
+        //     if (data[0].visible) {
+        //         visibility = data[0].visible.map(v => v === true || v === "legendonly");
+        //         console.log(visibility)
+        //         updateStats();
+        //     }
+        // });
+
+
+        function updateStats(minIndex = 0, maxIndex = values[0].length - 1) {
+            let stats = values.map((series, index) => {
+                let subset = series.slice(minIndex, maxIndex + 1);
+                let mean = subset.reduce((a, b) => a + b, 0) / subset.length;
+                let min = Math.min(...subset);
+                let max = Math.max(...subset);
+                return { name: `Series ${index + 1}`, mean: mean.toFixed(2), min, max };
+                // if (visibility[index]) {
+                //     let subset = series.slice(minIndex, maxIndex + 1);
+                //     let mean = subset.reduce((a, b) => a + b, 0) / subset.length;
+                //     let min = Math.min(...subset);
+                //     let max = Math.max(...subset);
+                //     return { name: `Series ${index + 1}`, mean: mean.toFixed(2), min, max };
+                // }
+            }).filter(Boolean);
+
+            let tableContent = `<tr><th>Name</th><th>Mean</th><th>Min</th><th>Max</th></tr>` +
+                stats.map(entry => `<tr><td>${entry.name}</td><td>${entry.mean}</td><td>${entry.min}</td><td>${entry.max}</td></tr>`).join('');
+            document.getElementById('dataStats').innerHTML = tableContent;
+        }
+
+        function resetSelection() {
+            selectedPoints = [];
+            document.getElementById('pointsSelected').innerText = `Points selected: ${timeStamps[0]} - ${timeStamps[timeStamps.length - 1]}`;
+            document.getElementById('timeDiff').innerText = `Delta time [s]: ${Math.abs(timeStamps[timeStamps.length - 1] - timeStamps[0])}`;
+            layout.shapes = [];
+            updateStats();
+            Plotly.relayout('plot', { shapes: layout.shapes });
+        }
+
+        // Functions for development ---------------------------------------------------------------
+        function generateRandomMatrix(rows, cols, min = 0, max = 100) {
+            let matrix = [];
+            for (let i = 0; i < rows; i++) {
+                let row = [];
+                for (let j = 0; j < cols; j++) {
+                    row.push(Math.floor(Math.random() * (max - min + 1)) + min + i*100);
+                }
+                matrix.push(row);
+            }
+            return matrix;
+        }
+
+        function generateRangeArray(x) {
+            return Array.from({ length: x + 1 }, (_, i) => (i * 1/sampling_frq));
+        }
+
+        function generateTrueArray(length) {
+            return Array.from({ length }, () => true);
+        }
+
+        function generateNameArray(n) {
+            return Array.from({ length: n + 1 }, (_, i) => `name_${i}`);
+        }
+
+    </script>
+</body>
+</html>
