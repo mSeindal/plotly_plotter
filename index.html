@@ -155,6 +155,23 @@
         input:checked + .slider:before {
             transform: translateX(26px);
         }
+
+        #windowSize {
+            width: 60px;
+            padding: 8px;
+            font-size: 16px;
+            border: 2px solid #4881fb;
+            border-radius: 5px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        #windowSize:focus {
+            border-color: #0056b3;
+            box-shadow: 0 0 5px rgba(0, 86, 179, 0.5);
+        }
+
     </style>
 </head>
 <body>
@@ -169,6 +186,7 @@
                     <input type="checkbox" id="toggleSmooth" onclick="toggleSmoothing()">
                     <span class="slider round"></span>
                 </label>
+                <input type="number" id="windowSize" min="2" max="100" value="10" onchange="updateWindowSize()">
             </div>
         </div>
         <p id="timeDiff">Delta time [s]: ... </p>
@@ -199,6 +217,7 @@
 
 
         let smoothed = false;
+        let windowSize = 10; // Default window size
         let originalValues = JSON.parse(JSON.stringify(values)); // Deep copy of original data
 
 
@@ -284,12 +303,19 @@
             Plotly.relayout('plot', { shapes: layout.shapes });
         });
 
-
+        function updateWindowSize() {
+            let inputBox = document.getElementById("windowSize");
+            windowSize = Math.min(100, Math.max(2, parseInt(inputBox.value)));
+            if (smoothed) {
+                values = values.map(series => smoothData(series, windowSize));
+                updatePlot();
+            }
+        }
 
         function toggleSmoothing() {
             smoothed = !smoothed;
             if (smoothed) {
-                values = values.map(series => smoothData(series, 10)); // Apply smoothing with window size 10
+                values = values.map(series => smoothData(series, windowSize)); // Apply smoothing with window size
             } else {
                 values = JSON.parse(JSON.stringify(originalValues)); // Restore original data
             }
