@@ -94,6 +94,67 @@
             background-color: #426ecc66;
             transition: 0.2s;
         }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            margin-right: 10px;
+        }
+
+        .toggle-label {
+            font-size: 18px;
+            font-weight: 600;
+            color: #444;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #4881fb;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body>
@@ -102,6 +163,13 @@
         <div class="controls">
             <button onclick="resetSelection()">Reset Selection</button>
             <p id="pointsSelected">Points selected: </p>
+            <div class="toggle-container">
+                <span class="toggle-label">Smooth signal</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggleSmooth" onclick="toggleSmoothing()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
         </div>
         <p id="timeDiff">Delta time [s]: ... </p>
         <table id="dataStats">
@@ -114,18 +182,25 @@
             </tr>
         </table>
     </div>
+    <!-- <button id="toggleSmooth" onclick="toggleSmoothing()">Toggle Smoothing</button> -->
+
 
     <script>
         // Constants for development ---------------------------------------------------------------
         const plot_title = "my tilte"
-        const sampling_frq = 5000
-        const data_lenght = 30000
-        const num_ch = 26
+        const sampling_frq = 100
+        const data_lenght = 100
+        const num_ch = 3
 
         let timeStamps = generateRangeArray(data_lenght)
         let values = generateRandomMatrix(num_ch, data_lenght)
         let names = generateNameArray(num_ch)
         // -----------------------------------------------------------------------------------------
+
+
+        let smoothed = false;
+        let originalValues = JSON.parse(JSON.stringify(values)); // Deep copy of original data
+
 
         let selectedPoints = [];
         let shapes = [];
@@ -191,7 +266,7 @@
 
                 let minIndex = Math.min(selectedPoints[0], selectedPoints[1]);
                 let maxIndex = Math.max(selectedPoints[0], selectedPoints[1]);
-                updateStats(minIndex, maxIndex);
+                updateStats(timeStamps.indexOf(minIndex), timeStamps.indexOf(maxIndex));
 
                 layout.shapes = [{
                     type: 'rect',
@@ -209,8 +284,43 @@
             Plotly.relayout('plot', { shapes: layout.shapes });
         });
 
-        function updateStats(minIndex = 0, maxIndex = values[0].length - 1) {
-            let stats = values.map((series, index) => {
+
+
+        function toggleSmoothing() {
+            smoothed = !smoothed;
+            if (smoothed) {
+                values = values.map(series => smoothData(series, 10)); // Apply smoothing with window size 10
+            } else {
+                values = JSON.parse(JSON.stringify(originalValues)); // Restore original data
+            }
+            updatePlot();
+        }
+
+        function smoothData(data, windowSize) {
+            let smoothedData = [];
+            for (let i = 0; i < data.length; i++) {
+                let start = Math.max(0, i - Math.floor(windowSize / 2));
+                let end = Math.min(data.length, i + Math.floor(windowSize / 2));
+                let subset = data.slice(start, end);
+                let average = subset.reduce((sum, val) => sum + val, 0) / subset.length;
+                smoothedData.push(average);
+            }
+            return smoothedData;
+        }
+
+        function updatePlot() {
+            let newTraces = values.map((line, index) => ({
+                x: timeStamps,
+                y: line,
+                type: 'scatter',
+                mode: 'lines',
+                name: names[index]
+            }));
+            Plotly.react('plot', newTraces, layout);
+        }
+
+        function updateStats(minIndex = 0, maxIndex = originalValues[0].length - 1) {
+            let stats = originalValues.map((series, index) => {
                 let subset = series.slice(minIndex, maxIndex + 1);
                 let mean = subset.reduce((a, b) => a + b, 0) / subset.length;
                 let min = Math.min(...subset);
