@@ -306,10 +306,14 @@
         function updateWindowSize() {
             let inputBox = document.getElementById("windowSize");
             windowSize = Math.min(100, Math.max(2, parseInt(inputBox.value)));
-            if (smoothed) {
-                values = values.map(series => smoothData(series, windowSize));
-                updatePlot();
-            }
+
+            // Set the smooth toggle switch to false
+            let smoothToggle = document.getElementById("toggleSmooth");
+            smoothToggle.checked = false;
+            smoothed = false; // Ensure smoothing is disabled
+
+            values = JSON.parse(JSON.stringify(originalValues)); // Restore original data
+            updatePlot(); // Update the plot without smoothing
         }
 
         function toggleSmoothing() {
